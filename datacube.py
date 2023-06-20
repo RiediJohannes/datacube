@@ -97,8 +97,8 @@ class DataCube:
     def show_front(self, z_level: int = 0) -> list[float]:
         # calculate all values on one X-Y-face and save them to a list
         results = []
-        for x_val in self.x_labels:
-            for y_val in self.y_labels:
+        for y_val in self.y_labels:
+            for x_val in self.x_labels:
                 results.append(self._compute_value(x_val, y_val, self.z_labels[z_level]))
 
         # print a pretty representation of the X-Y face
