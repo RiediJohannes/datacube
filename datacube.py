@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+import copy
 import itertools
 from collections.abc import Sequence
 
@@ -45,6 +48,20 @@ class DataTable:
 
         return self._values[row][col]
 
+    # Removes a row or column with the given name from the dataset
+    def drop_line(self, name: str) -> None:
+        # remove a row if applicable
+        if name in self.row_names:
+            row = self.row_names.index(name)
+            del self.row_names[row]
+            del self._values[row]
+        # remove a column if applicable
+        elif name in self.col_names:
+            col = self.col_names.index(name)
+            del self.row_names[col]
+            for row in self._values:
+                del row[col]
+
     def __contains__(self, obj: str) -> bool:
         all_names = self.row_names + self.col_names
 
@@ -58,7 +75,7 @@ class DataTable:
 
 
 class DataCube:
-
+    Y_LABEL_LENGTH: int = 14
 
     def __init__(self, *, x: list[str], y: list[str], z: list[str]):
         self.x_labels = x
@@ -106,7 +123,7 @@ class DataCube:
             for x_val in self.x_labels:
                 results.append(self._compute_value(x_val, y_val, self.z_labels[z_level]))
 
-        print(' ' * 14 + f"++ z-level: {self.z_labels[z_level]} ++")
+        print(' ' * (self.Y_LABEL_LENGTH + 2) + f"++ z-level: {self.z_labels[z_level]} ++")
 
         # print a pretty representation of the X-Y face
         width = 0
@@ -117,9 +134,9 @@ class DataCube:
             for x in range(len(self.y_labels)):
                 line = line + ' | ' + "{:.1f}".format(results[x + 3 * i])
 
-            width = len(line) + 1
-            row_label = self.y_labels[i].rjust(12)[:12]
-            margin_left = 14
+            width: int = len(line) + 1
+            margin_left: int = (self.Y_LABEL_LENGTH + 2)
+            row_label: str = self.y_labels[i].rjust(self.Y_LABEL_LENGTH)[:self.Y_LABEL_LENGTH]
 
             # print the data row preceded by a dashed line
             print(' ' * margin_left + '-' * width)
@@ -130,6 +147,29 @@ class DataCube:
         print(' ' * (margin_left + 1) + ' '.join([label.center(6)[:6] for label in self.x_labels]))
 
         return results
+
+    def slice(self, *, z_index=0, z_label='') -> DataCube:
+        if z_label:
+            try:
+                z_index = self.z_labels.index(z_label)
+            except ValueError:
+                raise Exception(f'Given label {z_label} is not part of the labels on the z-axis')
+
+        if z_index < 0 or z_index >= len(self.z_labels):
+            raise Exception(f'Out of bounds error! Z-axis does not contain element with index {z_index}')
+
+        z_plane_name = self.z_labels[z_index]
+        sliced_cube: DataCube = DataCube(x=self.x_labels, y=self.y_labels, z=[z_plane_name])
+
+        for table in self._tables:
+            cloned_table = copy.deepcopy(table)
+            for z_label in self.z_labels:
+                if z_label != z_plane_name:
+                    cloned_table.drop_line(z_label)
+            sliced_cube.add_data(cloned_table)
+
+        return sliced_cube
+
 
     def _compute_value(self, first: str, second: str, third: str) -> float:
         # get every possible unique combination of two values taken from the parameters first, second and third
