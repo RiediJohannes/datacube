@@ -58,7 +58,7 @@ class DataTable:
         # remove a column if applicable
         elif name in self.col_names:
             col = self.col_names.index(name)
-            del self.row_names[col]
+            del self.col_names[col]
             for row in self._values:
                 del row[col]
 
@@ -128,11 +128,11 @@ class DataCube:
         # print a pretty representation of the X-Y face
         width = 0
         margin_left = 0
-        for i, _ in enumerate(self.x_labels):
+        for i, _ in enumerate(self.y_labels):
             # construct a row for every x value
             line = ''
-            for x in range(len(self.y_labels)):
-                line = line + ' | ' + "{:.1f}".format(results[x + 3 * i])
+            for x in range(len(self.x_labels)):
+                line = line + ' | ' + "{:.1f}".format(results[x + len(self.x_labels) * i])
 
             width: int = len(line) + 1
             margin_left: int = (self.Y_LABEL_LENGTH + 2)
@@ -158,18 +158,36 @@ class DataCube:
         if z_index < 0 or z_index >= len(self.z_labels):
             raise Exception(f'Out of bounds error! Z-axis does not contain element with index {z_index}')
 
-        z_plane_name = self.z_labels[z_index]
-        sliced_cube: DataCube = DataCube(x=self.x_labels, y=self.y_labels, z=[z_plane_name])
+        # dice the current data cube with a single z-label to get the requested z-slice
+        return self.dice(self.x_labels, self.y_labels, [self.z_labels[z_index]])
 
-        for table in self._tables:
-            cloned_table = copy.deepcopy(table)
-            for z_label in self.z_labels:
-                if z_label != z_plane_name:
-                    cloned_table.drop_line(z_label)
-            sliced_cube.add_data(cloned_table)
+    def dice(self, x_labels: list[str], y_labels: list[str], z_labels: list[str]) -> DataCube:
+        # checks if the given lists contain only existing axis labels
+        def _check_if_subset(small_list: list[str], big_list: list[str]):
+            if not set(small_list).issubset(set(big_list)):
+                raise Exception(f'Selected x-Labels {str(small_list)} are not a subset of the existing labels {str(big_list)}')
 
-        return sliced_cube
+        # filters a given data table to keep only rows/columns whose label is in the allowed_items list
+        def _filter_data_table(table: DataTable, allowed_items, current_items):
+            for item in current_items:
+                if item not in allowed_items:
+                    table.drop_line(item)
 
+        _check_if_subset(x_labels, self.x_labels)
+        _check_if_subset(y_labels, self.y_labels)
+        _check_if_subset(z_labels, self.z_labels)
+
+        dice: DataCube = DataCube(x=x_labels, y=y_labels, z=z_labels)
+        for data_table in self._tables:
+            cloned_table = copy.deepcopy(data_table)
+
+            _filter_data_table(cloned_table, x_labels, self.x_labels)
+            _filter_data_table(cloned_table, y_labels, self.y_labels)
+            _filter_data_table(cloned_table, z_labels, self.z_labels)
+
+            dice.add_data(cloned_table)
+
+        return dice
 
     def _compute_value(self, first: str, second: str, third: str) -> float:
         # get every possible unique combination of two values taken from the parameters first, second and third
