@@ -59,13 +59,14 @@ class DataTable:
 
 class DataCube:
 
+
     def __init__(self, *, x: list[str], y: list[str], z: list[str]):
         self.x_labels = x
         self.y_labels = y
         self.z_labels = z
         self._tables: list[DataTable] = []
 
-    def cell(self, x: int, y: int, z: int) -> float:
+    def cell(self, x: int, y: int, z: int, verbose: bool = False) -> float | tuple[float, tuple[str]]:
         for param in [x, y, z]:
             if not isinstance(param, int):
                 raise Exception("Invalid argument! Dimension indexes must be integers")
@@ -77,7 +78,11 @@ class DataCube:
         if None in [x_str, y_str, z_str]:
             raise Exception("Invalid argument! One or more parameters exceeded the possible dimension range (0-len)")
 
-        return self._compute_value(x_str, y_str, z_str)
+        if verbose:
+            # noinspection PyTypeChecker
+            return self._compute_value(x_str, y_str, z_str), (x_str, y_str, z_str)
+        else:
+            return self._compute_value(x_str, y_str, z_str)
 
     def add_data(self, table: DataTable):
         # check the type of the argument
@@ -101,19 +106,28 @@ class DataCube:
             for x_val in self.x_labels:
                 results.append(self._compute_value(x_val, y_val, self.z_labels[z_level]))
 
+        print(' ' * 14 + f"++ z-level: {self.z_labels[z_level]} ++")
+
         # print a pretty representation of the X-Y face
-        offset = 0
         width = 0
-        for _ in self.x_labels:
+        margin_left = 0
+        for i, _ in enumerate(self.x_labels):
+            # construct a row for every x value
             line = ''
             for x in range(len(self.y_labels)):
-                line = line + ' | ' + "{:.1f}".format(results[x + offset])
+                line = line + ' | ' + "{:.1f}".format(results[x + 3 * i])
 
             width = len(line) + 1
-            print(' ' + '-' * width)
-            print(line + ' |')
-            offset += 3
-        print(' ' + '-' * width)
+            row_label = self.y_labels[i].rjust(12)[:12]
+            margin_left = 14
+
+            # print the data row preceded by a dashed line
+            print(' ' * margin_left + '-' * width)
+            print(row_label + ' ' + line + ' |')
+        # print the closing dashes
+        print(' ' * margin_left + '-' * width)
+        # show labels for the columns
+        print(' ' * (margin_left + 1) + ' '.join([label.center(6)[:6] for label in self.x_labels]))
 
         return results
 
