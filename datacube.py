@@ -12,7 +12,6 @@ class Axis(Enum):
     Y = 2
     Z = 3
 
-
 def _is_collection(obj):
     return isinstance(obj, Sequence) and not isinstance(obj, (str, bytes, bytearray))
 
@@ -26,7 +25,7 @@ class DataTable:
 
     @property
     def values(self) -> list[list[int]]:
-        return self._values
+        return self._values[:]  # return a copy of the list
 
     @values.setter
     def values(self, vals: list[list[int]]):
@@ -156,6 +155,37 @@ class DataCube:
 
         return results
 
+    # IMPORTANT: Definition of "clockwise":
+    # If you imagine the rotation axis as a screw with the tip of the arrow
+    # being the pointy end of the screw, then clockwise is the direction you
+    # turn the screw to drive it into the wall.
+    def rotate(self, axis: Axis, clockwise: bool) -> DataCube:
+        rotated_cube: DataCube = self
+
+        # [:] makes a copy of the full list
+        # [::-1] makes a reversed copy of the full list
+        if clockwise:
+            match axis:
+                case Axis.X:
+                    rotated_cube = DataCube(x=self.x_labels[:], y=self.z_labels[::-1], z=self.y_labels[:])
+                case Axis.Y:
+                    rotated_cube = DataCube(x=self.z_labels[::-1], y=self.y_labels[:], z=self.x_labels[:])
+                case Axis.Z:
+                    rotated_cube = DataCube(x=self.y_labels[::-1], y=self.x_labels[:], z=self.z_labels[:])
+        else:
+            match axis:
+                case Axis.X:
+                    rotated_cube = DataCube(x=self.x_labels[:], y=self.z_labels[:], z=self.y_labels[::-1])
+                case Axis.Y:
+                    rotated_cube = DataCube(x=self.z_labels[:], y=self.y_labels[:], z=self.x_labels[::-1])
+                case Axis.Z:
+                    rotated_cube = DataCube(x=self.y_labels[:], y=self.x_labels[::-1], z=self.z_labels[:])
+
+        for table in self._tables:
+            rotated_cube.add_data(table)
+
+        return rotated_cube
+
     def slice(self, axis: Axis, line: int | str) -> DataCube:
         # checks if the line label is valid (if line is string) or if the given index is within the available bounds
         def _check_line_selection(existing_labels, requested_line: int | str) -> int:
@@ -199,7 +229,7 @@ class DataCube:
         _check_if_subset(y_labels, self.y_labels)
         _check_if_subset(z_labels, self.z_labels)
 
-        dice: DataCube = DataCube(x=x_labels, y=y_labels, z=z_labels)
+        dice: DataCube = DataCube(x=x_labels[:], y=y_labels[:], z=z_labels[:])
         for data_table in self._tables:
             cloned_table = copy.deepcopy(data_table)
 
@@ -230,11 +260,11 @@ class DataCube:
     def __getitem__(self, arg):
         match arg:
             case 'x':
-                return self.x_labels
+                return self.x_labels[:]
             case 'y':
-                return self.y_labels
+                return self.y_labels[:]
             case 'z':
-                return self.z_labels
+                return self.z_labels[:]
             case _:
                 raise Exception("Invalid argument! Bracket indexing is only supported for the values x/y/z")
 
