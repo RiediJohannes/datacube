@@ -77,7 +77,7 @@ class DataCube:
         if None in [x_str, y_str, z_str]:
             raise Exception("Invalid argument! One or more parameters exceeded the possible dimension range (0-len)")
 
-        return round(self._compute_value(x_str, y_str, z_str), 1)
+        return self._compute_value(x_str, y_str, z_str)
 
     def add_data(self, table: DataTable):
         # check the type of the argument
@@ -94,6 +94,29 @@ class DataCube:
 
         self._tables.append(table)
 
+    def show_front(self, z_level: int = 0) -> list[float]:
+        # calculate all values on one X-Y-face and save them to a list
+        results = []
+        for x_val in self.x_labels:
+            for y_val in self.y_labels:
+                results.append(self._compute_value(x_val, y_val, self.z_labels[z_level]))
+
+        # print a pretty representation of the X-Y face
+        offset = 0
+        width = 0
+        for _ in self.x_labels:
+            line = ''
+            for x in range(len(self.y_labels)):
+                line = line + ' | ' + "{:.1f}".format(results[x + offset])
+
+            width = len(line) + 1
+            print(' ' + '-' * width)
+            print(line + ' |')
+            offset += 3
+        print(' ' + '-' * width)
+
+        return results
+
     def _compute_value(self, first: str, second: str, third: str) -> float:
         # get every possible unique combination of two values taken from the parameters first, second and third
         pairs = list(itertools.combinations([first, second, third], 2))
@@ -107,7 +130,7 @@ class DataCube:
         if len(results) != 3:
             raise Exception("Failed to compute value! Datasets do not contain a unifying cell for all three arguments")
 
-        return sum(results) / 3
+        return round(sum(results) / 3, 1)
 
     # define a method to access properties by bracket indexing -> cube[x]
     def __getitem__(self, arg):
