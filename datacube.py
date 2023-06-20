@@ -3,6 +3,14 @@ from __future__ import annotations
 import copy
 import itertools
 from collections.abc import Sequence
+from enum import Enum
+
+
+# enum to define the axis of a three-dimensional coordinate system
+class Axis(Enum):
+    X = 1
+    Y = 2
+    Z = 3
 
 
 def _is_collection(obj):
@@ -148,18 +156,32 @@ class DataCube:
 
         return results
 
-    def slice(self, *, z_index=0, z_label='') -> DataCube:
-        if z_label:
-            try:
-                z_index = self.z_labels.index(z_label)
-            except ValueError:
-                raise Exception(f'Given label {z_label} is not part of the labels on the z-axis')
+    def slice(self, axis: Axis, line: int | str) -> DataCube:
+        # checks if the line label is valid (if line is string) or if the given index is within the available bounds
+        def _check_line_selection(existing_labels, requested_line: int | str) -> int:
+            line_index: int | str = requested_line
+            if isinstance(requested_line, str):
+                try:
+                    line_index = existing_labels.index(requested_line)
+                except ValueError:
+                    raise Exception(f'Given label {requested_line} is not part of the labels on the respective axis')
 
-        if z_index < 0 or z_index >= len(self.z_labels):
-            raise Exception(f'Out of bounds error! Z-axis does not contain element with index {z_index}')
+            if line_index < 0 or line_index >= len(existing_labels):
+                raise Exception(f'Out of bounds error! Z-axis does not contain element with index {line_index}')
 
-        # dice the current data cube with a single z-label to get the requested z-slice
-        return self.dice(self.x_labels, self.y_labels, [self.z_labels[z_index]])
+            return int(line_index)
+
+        # dice the current data cube with a single line on the requested axis to get the respective slice
+        match axis:
+            case Axis.X:
+                index = _check_line_selection(self.x_labels, line)
+                return self.dice([self.x_labels[index]], self.y_labels, self.z_labels)
+            case Axis.Y:
+                index = _check_line_selection(self.y_labels, line)
+                return self.dice(self.x_labels, [self.y_labels[index]], self.z_labels)
+            case Axis.Z:
+                index = _check_line_selection(self.z_labels, line)
+                return self.dice(self.x_labels, self.y_labels, [self.z_labels[index]])
 
     def dice(self, x_labels: list[str], y_labels: list[str], z_labels: list[str]) -> DataCube:
         # checks if the given lists contain only existing axis labels
