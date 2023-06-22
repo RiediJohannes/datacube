@@ -83,6 +83,7 @@ class DataTable:
 
 class DataCube:
     Y_LABEL_LENGTH: int = 14
+    cell_function: callable([int, int, int]) = lambda x, y, z: (x + y + z) / 3
 
     def __init__(self, *, x: list[str], y: list[str], z: list[str]):
         self.x_labels = x
@@ -254,7 +255,7 @@ class DataCube:
         if len(results) != 3:
             raise Exception("Failed to compute value! Datasets do not contain a unifying cell for all three arguments")
 
-        return round(sum(results) / 3, 1)
+        return round(DataCube.cell_function(*results), 1)
 
     # define a method to access properties by bracket indexing -> cube[x]
     def __getitem__(self, arg):
